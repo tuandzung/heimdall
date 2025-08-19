@@ -8,7 +8,7 @@ import pytest
 
 from fastapi.testclient import TestClient
 
-from heimdall.api import app, get_job_locator
+from heimdall.api import app, get_job_locator, get_settings
 from heimdall.models import FlinkJob, FlinkJobResources, FlinkJobType
 from heimdall.service import FlinkJobLocator
 
@@ -57,9 +57,11 @@ def test_healthz():
     assert resp.json()["ok"] is True
 
 
-def test_config():
+def test_config(monkeypatch):
+    monkeypatch.setenv("HEIMDALL_AUTH__ENABLED", "false")
+    get_settings.cache_clear()  # type: ignore[attr-defined]
     client = TestClient(app)
-    resp = client.get("/config")
+    resp = client.get("/api/config")
     assert resp.status_code == 200
     data = resp.json()
     assert "appVersion" in data
@@ -67,9 +69,11 @@ def test_config():
     assert "endpointPathPatterns" in data
 
 
-def test_jobs():
+def test_jobs(monkeypatch):
+    monkeypatch.setenv("HEIMDALL_AUTH__ENABLED", "false")
+    get_settings.cache_clear()  # type: ignore[attr-defined]
     client = TestClient(app)
-    resp = client.get("/jobs")
+    resp = client.get("/api/jobs")
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, list)
@@ -77,3 +81,36 @@ def test_jobs():
     job = data[0]
     assert job["name"] == "demo-app"
     assert job["type"] == "APPLICATION"
+
+
+def test_docs_access_without_auth_by_default(monkeypatch):
+    # Ensure auth disabled
+    monkeypatch.setenv("HEIMDALL_AUTH__ENABLED", "false")
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+    client = TestClient(app)
+    # Swagger UI
+    resp = client.get("/docs")
+    assert resp.status_code == 200
+    # OpenAPI JSON
+    resp = client.get("/openapi.json")
+    assert resp.status_code == 200
+
+
+def test_docs_protected_when_auth_enabled(monkeypatch):
+    # Enable auth and set a session secret key
+    monkeypatch.setenv("HEIMDALL_AUTH__ENABLED", "true")
+    monkeypatch.setenv("HEIMDALL_AUTH__SESSION_SECRET_KEY", "test-secret")
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+
+    client = TestClient(app)
+    # Swagger UI should require auth
+    resp = client.get("/docs")
+    assert resp.status_code == 401
+    # OpenAPI JSON should require auth
+    resp = client.get("/openapi.json")
+    assert resp.status_code == 401
+
+    # Cleanup: restore default settings cache
+    monkeypatch.delenv("HEIMDALL_AUTH__ENABLED", raising=False)
+    monkeypatch.delenv("HEIMDALL_AUTH__SESSION_SECRET_KEY", raising=False)
+    get_settings.cache_clear()  # type: ignore[attr-defined]
