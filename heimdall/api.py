@@ -7,6 +7,8 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import RedirectResponse
@@ -29,7 +31,7 @@ def get_job_locator(settings: AppConfig = Depends(get_settings)) -> FlinkJobLoca
     return K8sOperatorFlinkJobLocator(settings)
 
 
-app = FastAPI(title="Heimdall", version=__version__)
+app = FastAPI(title="Heimdall", version=__version__, docs_url=None, redoc_url=None, openapi_url=None)
 
 
 def _require_authenticated_user(request: Request, settings: AppConfig = Depends(get_settings)) -> None:
@@ -162,6 +164,22 @@ async def auth_logout(request: Request):
     if hasattr(request, "session"):
         request.session.clear()
     return {"ok": True}
+
+
+# --- Protected OpenAPI docs ---
+@app.get("/openapi.json")
+async def openapi_json(_: None = Depends(_require_authenticated_user)):
+    return JSONResponse(app.openapi())
+
+
+@app.get("/docs")
+async def swagger_ui(_: None = Depends(_require_authenticated_user)):
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="Heimdall API Docs")
+
+
+@app.get("/redoc")
+async def redoc_ui(_: None = Depends(_require_authenticated_user)):
+    return get_redoc_html(openapi_url="/openapi.json", title="Heimdall API ReDoc")
 
 
 @app.get("/healthz")
