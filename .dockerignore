@@ -1,0 +1,31 @@
+# VCS
+.git
+.gitignore
+
+# Env
+.env
+.env.*
+
+# Bytecode and caches
+**/__pycache__/*
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache
+.pytest_cache
+.ruff_cache
+
+# Editors and OS files
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Packaging metadata
+**/*.egg-info
+heimdall.egg-info
+
+# Not needed in image
+_upstream_heimdall_java
+.cursor
+.serena

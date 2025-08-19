@@ -1,0 +1,69 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+.venv/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.coverage
+.coverage.*
+.cache/
+nosetests.xml
+coverage.xml
+htmlcov/
+.pytest_cache/
+
+# Type checkers
+.mypy_cache/
+.pytype/
+.dmypy.json
+
+# Linting caches
+.ruff_cache/
+
+# Environments
+.env
+.env.*
+.venv
+.python-version
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# Packaging metadata
+*.egg-info/
+heimdall.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Project-specific
+_upstream_heimdall_java/
+uv.lock.bak
+.cursor
+.serena
