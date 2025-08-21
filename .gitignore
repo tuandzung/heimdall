@@ -12,6 +12,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!webui/**/*
 lib64/
 parts/
 sdist/
@@ -67,3 +68,4 @@ _upstream_heimdall_java/
 uv.lock.bak
 .cursor
 .serena
+heimdall.db

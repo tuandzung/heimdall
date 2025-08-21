@@ -29,3 +29,4 @@ heimdall.egg-info
 _upstream_heimdall_java
 .cursor
 .serena
+heimdall.db
