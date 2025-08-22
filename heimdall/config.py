@@ -28,6 +28,7 @@ class AuthSettings(BaseSettings):
     allowed_emails: list[str] = []
     allowed_domains: list[str] = []
     session_secret_key: str = "change-me"
+    database_url: str = "sqlite+aiosqlite:///./heimdall.db"
 
     model_config = SettingsConfigDict(env_prefix="HEIMDALL_AUTH_", env_nested_delimiter="__")
 

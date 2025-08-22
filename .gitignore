@@ -66,6 +66,10 @@ heimdall.egg-info/
 # Project-specific
 _upstream_heimdall_java/
 uv.lock.bak
+
+# AI
 .cursor
 .serena
 heimdall.db
+CLAUDE.md
+.mcp.json

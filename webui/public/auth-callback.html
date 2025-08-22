@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Auth Callback</title>
+  </head>
+  <body>
+    <script>
+      (async () => {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const state = params.get('state');
+        const error = params.get('error');
+        if (error) {
+          console.error('OAuth error:', error);
+          window.location.replace('/');
+          return;
+        }
+        if (!code || !state) {
+          window.location.replace('/');
+          return;
+        }
+        try {
+          const qs = new URLSearchParams({ code, state }).toString();
+          const resp = await fetch(`/auth/google/callback?${qs}`, { method: 'GET' });
+          if (!resp.ok) {
+            console.error('Callback exchange failed', await resp.text());
+            window.location.replace('/');
+            return;
+          }
+          const data = await resp.json();
+          const token = data && (data.access_token || data.token || data.tokenValue);
+          if (token) {
+            try { localStorage.setItem('heimdall_token', token); } catch {}
+            window.location.replace('/');
+          } else {
+            console.warn('No access token in callback response');
+            window.location.replace('/');
+          }
+        } catch (e) {
+          console.error('Error completing OAuth callback', e);
+          window.location.replace('/');
+        }
+      })();
+    </script>
+  </body>
+  </html>
+
+

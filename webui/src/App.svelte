@@ -3,9 +3,10 @@
   import { faGithub } from '@fortawesome/free-brands-svg-icons'
 
   import heimdallLogo from './assets/heimdall-logo.png'
+  import { userStore } from './lib/stores/user.js';
+  import { startGoogleOAuth } from './lib/authApi.js';
   import FlinkJobs from './lib/FlinkJobs.svelte'
   import { appConfig } from "./lib/stores/appConfig.js";
-  import { userStore } from './lib/stores/user.js';
 </script>
 
 <main>
@@ -18,7 +19,7 @@
           <span class="mr-3">{$userStore.user.email}</span>
           <button class="underline" on:click={() => userStore.logout()}>Logout</button>
         {:else}
-          <a href="/auth/login" class="underline">Login with Google</a>
+          <button class="underline" on:click={startGoogleOAuth}>Login with Google</button>
         {/if}
       </div>
     </div>

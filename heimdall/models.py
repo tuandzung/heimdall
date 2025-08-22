@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import uuid
+
 from enum import Enum
 
+from fastapi_users import schemas
 from pydantic import BaseModel
 
 
@@ -27,3 +30,15 @@ class FlinkJob(BaseModel):
     parallelism: int
     resources: dict[str, FlinkJobResources]
     metadata: dict[str, str]
+
+
+class UserRead(schemas.BaseUser[uuid.UUID]):
+    pass
+
+
+class UserCreate(schemas.BaseUserCreate):
+    pass
+
+
+class UserUpdate(schemas.BaseUserUpdate):
+    pass
