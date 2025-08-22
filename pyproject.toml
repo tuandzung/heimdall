@@ -2,7 +2,7 @@
 name = "heimdall"
 version = "0.1.0"
 description = "Python reimplementation of Heimdall (Flink job discovery via K8s Operator)"
-authors = [{ name = "dungnt", email = "dungnt@topcv.vn" }]
+authors = [{ name = "tuandzung", email = "mail@tuandzung.me" }]
 requires-python = ">=3.12"
 readme = "README.md"
 dependencies = [
