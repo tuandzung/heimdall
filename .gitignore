@@ -44,7 +44,6 @@ htmlcov/
 
 # Environments
 .env
-.env.*
 .venv
 .python-version
 
