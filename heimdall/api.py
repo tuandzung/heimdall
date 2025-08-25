@@ -84,7 +84,7 @@ async def auth_callback(request: Request):
 @app.get("/api/config")
 def read_config(
     settings: AppConfig = Depends(get_settings),
-    _: User = Depends(current_active_user),
+    _: User = Depends(current_active_user if settings.auth.enabled else lambda: None),
 ):
     return {
         "appVersion": settings.resolved_app_version(__version__),
@@ -101,7 +101,7 @@ _jobs_cache_ts: float | None = None
 async def list_jobs(
     locator: FlinkJobLocator = Depends(get_job_locator),
     settings: AppConfig = Depends(get_settings),
-    _: User = Depends(current_active_user),
+    _: User = Depends(current_active_user if settings.auth.enabled else lambda: None),
 ):
     global _jobs_cache_value, _jobs_cache_ts
     now = time.time()
