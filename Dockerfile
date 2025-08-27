@@ -1,4 +1,4 @@
-FROM denoland/deno:alpine-2.4.4 AS build_ui
+FROM denoland/deno:alpine-2.4.5 AS build_ui
 WORKDIR /app
 COPY webui/deno.lock webui/package.json webui/package-lock.json ./
 RUN deno install
