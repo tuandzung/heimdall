@@ -1,19 +1,12 @@
-/** @type {import('tailwindcss').Config} */
+import forms from "@tailwindcss/forms";
+
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,svelte}",
-  ],
   safelist: [
-    {
-      pattern: /bg-(red|green|yellow|gray)-500/,
-    }
+    { pattern: /bg-(red|green|yellow|gray)-500/ },
   ],
   theme: {
     extend: {},
   },
-  plugins: [
-    require('@tailwindcss/forms')
-  ],
-}
+  plugins: [forms],
+};
 
