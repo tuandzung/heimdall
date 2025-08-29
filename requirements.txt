@@ -24,7 +24,7 @@ argon2-cffi-bindings==25.1.0 ; python_full_version < '3.14'
     # via argon2-cffi
 attrs==25.3.0
     # via aiohttp
-authlib==1.6.1
+authlib==1.6.3
     # via heimdall
 bcrypt==4.3.0
     # via pwdlib
