@@ -205,7 +205,7 @@ typer==0.16.1
     # via
     #   fastapi-cli
     #   fastapi-cloud-cli
-typing-extensions==4.14.1
+typing-extensions==4.15.0
     # via
     #   aiosignal
     #   aiosqlite
