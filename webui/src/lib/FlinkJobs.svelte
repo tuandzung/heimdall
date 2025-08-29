@@ -19,47 +19,54 @@
   import JobType from "./JobType.svelte";
   import Modal from "./Modal.svelte";
 
-  let jobNameFilter;
-  let statusFilter;
+  let jobNameFilter = $state();
+  let statusFilter = $state();
 
-  let activeSorting;
+  let activeSorting = $state();
 
-  let showSettingsModal = false;
+  let showSettingsModal = $state(false);
 
-  $: visibleFlinkJobs = $flinkJobs.data
-    .filter((job) => {
-      let nameMatch = true;
-      let statusMatch = true;
-      if (jobNameFilter) {
-        nameMatch = displayName(job).includes(jobNameFilter);
-      }
-      if (statusFilter) {
-        statusMatch = job.status === statusFilter;
-      }
-      return nameMatch && statusMatch;
-    })
-    .sort((a, b) => {
-      if (!activeSorting || activeSorting === "jobNameAsc") {
-        return sortGeneric(displayName(a), displayName(b));
-      } else if (activeSorting === "jobNameDesc") {
-        return sortGeneric(displayName(b), displayName(a));
-      } else if (activeSorting === "startTimeAsc") {
-        return sortNumbers(a.startTime, b.startTime);
-      } else if (activeSorting === "startTimeDesc") {
-        return sortNumbers(b.startTime, a.startTime);
-      } else if (activeSorting === "resourcesAsc") {
-        return sortNumbers(totalResources(a), totalResources(b));
-      } else if (activeSorting === "resourcesDesc") {
-        return sortNumbers(totalResources(b), totalResources(a));
-      }
-    });
+  const visibleFlinkJobs = $derived(
+    $flinkJobs.data
+      .filter((job) => {
+        let nameMatch = true;
+        let statusMatch = true;
+        if (jobNameFilter) {
+          nameMatch = displayName(job).includes(jobNameFilter);
+        }
+        if (statusFilter) {
+          statusMatch = job.status === statusFilter;
+        }
+        return nameMatch && statusMatch;
+      })
+      .sort((a, b) => {
+        if (!activeSorting || activeSorting === "jobNameAsc") {
+          return sortGeneric(displayName(a), displayName(b));
+        } else if (activeSorting === "jobNameDesc") {
+          return sortGeneric(displayName(b), displayName(a));
+        } else if (activeSorting === "startTimeAsc") {
+          return sortNumbers(a.startTime, b.startTime);
+        } else if (activeSorting === "startTimeDesc") {
+          return sortNumbers(b.startTime, a.startTime);
+        } else if (activeSorting === "resourcesAsc") {
+          return sortNumbers(totalResources(a), totalResources(b));
+        } else if (activeSorting === "resourcesDesc") {
+          return sortNumbers(totalResources(b), totalResources(a));
+        }
+      }),
+  );
 
-  $: jobStatusList = [...new Set($flinkJobs.data.map((job) => job.status))];
+  const jobStatusList = $derived([
+    ...new Set($flinkJobs.data.map((job) => job.status)),
+  ]);
 
-  $: displayNamePattern = $appConfig?.patterns?.["display-name"];
+  const displayNamePattern = $derived($appConfig?.patterns?.["display-name"]);
 
-  $: $settings.refreshInterval &&
-    flinkJobs.setInterval($settings.refreshInterval);
+  $effect(() => {
+    if ($settings.refreshInterval) {
+      flinkJobs.setInterval($settings.refreshInterval);
+    }
+  });
 
   function statusColor(status) {
     switch (status) {
@@ -111,53 +118,58 @@
   }
 </script>
 
-<Modal bind:showModal={showSettingsModal}>
-  <div>
-    Refresh interval:
-    <select
-      name="refreshInterval"
-      bind:value={$settings.refreshInterval}
-      class="ml-2"
-    >
-      <option value="-1">No refresh</option>
-      <option value="10">10 sec</option>
-      <option value="30">30 sec</option>
-      <option value="60">60 sec</option>
-      <option value="300">5 min</option>
-    </select>
-  </div>
-  <div class="mt-2.5">
-    Display details:
-    <div class="mt-1">
-      <div>
-        <label>
-          <input
-            name="showJobParallelism"
-            type="checkbox"
-            bind:checked={$settings.showJobParallelism}
-          /> Parallelism
-        </label>
-      </div>
-      <div>
-        <label>
-          <input
-            name="showJobFlinkVersion"
-            type="checkbox"
-            bind:checked={$settings.showJobFlinkVersion}
-          /> Flink version
-        </label>
-      </div>
-      <div>
-        <label>
-          <input
-            name="showJobImage"
-            type="checkbox"
-            bind:checked={$settings.showJobImage}
-          /> Image
-        </label>
+<Modal
+  showModal={showSettingsModal}
+  onClose={() => (showSettingsModal = false)}
+>
+  {#snippet children()}
+    <div>
+      Refresh interval:
+      <select
+        name="refreshInterval"
+        bind:value={$settings.refreshInterval}
+        class="ml-2"
+      >
+        <option value="-1">No refresh</option>
+        <option value="10">10 sec</option>
+        <option value="30">30 sec</option>
+        <option value="60">60 sec</option>
+        <option value="300">5 min</option>
+      </select>
+    </div>
+    <div class="mt-2.5">
+      Display details:
+      <div class="mt-1">
+        <div>
+          <label>
+            <input
+              name="showJobParallelism"
+              type="checkbox"
+              bind:checked={$settings.showJobParallelism}
+            /> Parallelism
+          </label>
+        </div>
+        <div>
+          <label>
+            <input
+              name="showJobFlinkVersion"
+              type="checkbox"
+              bind:checked={$settings.showJobFlinkVersion}
+            /> Flink version
+          </label>
+        </div>
+        <div>
+          <label>
+            <input
+              name="showJobImage"
+              type="checkbox"
+              bind:checked={$settings.showJobImage}
+            /> Image
+          </label>
+        </div>
       </div>
     </div>
-  </div>
+  {/snippet}
 </Modal>
 <div class="flex items-center justify-between py-6 text-base">
   <div>
@@ -181,7 +193,7 @@
       <button
         type="button"
         title="Table view"
-        on:click={() => ($settings.displayMode = "tabular")}
+        onclick={() => ($settings.displayMode = "tabular")}
         class="inline-block"
       >
         <Fa
@@ -196,7 +208,7 @@
       <button
         type="button"
         title="Card view"
-        on:click={() => ($settings.displayMode = "card")}
+        onclick={() => ($settings.displayMode = "card")}
         class="inline-block"
       >
         <Fa
@@ -210,7 +222,7 @@
     <button
       type="button"
       title="Settings"
-      on:click={() => (showSettingsModal = true)}
+      onclick={() => (showSettingsModal = true)}
       class="inline-block"
     >
       <Fa
@@ -239,14 +251,14 @@
                 <button
                   aria-label="Sort by name ascending"
                   class="h-0 w-0 border-x-8 border-x-transparent border-b-10 hover:cursor-pointer mb-1"
-                  on:click={() => (activeSorting = "jobNameAsc")}
+                  onclick={() => (activeSorting = "jobNameAsc")}
                   class:border-b-black={activeSorting !== "jobNameAsc"}
                   class:border-b-[#e6516f]={activeSorting === "jobNameAsc"}
                 ></button>
                 <button
                   aria-label="Sort by name descending"
                   class="h-0 w-0 border-x-8 border-x-transparent border-t-10 hover:cursor-pointer"
-                  on:click={() => (activeSorting = "jobNameDesc")}
+                  onclick={() => (activeSorting = "jobNameDesc")}
                   class:border-t-black={activeSorting !== "jobNameDesc"}
                   class:border-t-[#e6516f]={activeSorting === "jobNameDesc"}
                 ></button>
@@ -261,14 +273,14 @@
                 <button
                   aria-label="Sort by resources ascending"
                   class="h-0 w-0 border-x-8 border-x-transparent border-b-10 border-b-black hover:cursor-pointer mb-1"
-                  on:click={() => (activeSorting = "resourcesAsc")}
+                  onclick={() => (activeSorting = "resourcesAsc")}
                   class:border-b-black={activeSorting !== "resourcesAsc"}
                   class:border-b-[#e6516f]={activeSorting === "resourcesAsc"}
                 ></button>
                 <button
                   aria-label="Sort by resources descending"
                   class="h-0 w-0 border-x-8 border-x-transparent border-t-10 border-t-black hover:cursor-pointer"
-                  on:click={() => (activeSorting = "resourcesDesc")}
+                  onclick={() => (activeSorting = "resourcesDesc")}
                   class:border-t-black={activeSorting !== "resourcesDesc"}
                   class:border-t-[#e6516f]={activeSorting === "resourcesDesc"}
                 ></button>
@@ -282,14 +294,14 @@
                 <button
                   aria-label="Sort by start time ascending"
                   class="h-0 w-0 border-x-8 border-x-transparent border-b-10 border-b-black hover:cursor-pointer mb-1"
-                  on:click={() => (activeSorting = "startTimeAsc")}
+                  onclick={() => (activeSorting = "startTimeAsc")}
                   class:border-b-black={activeSorting !== "startTimeAsc"}
                   class:border-b-[#e6516f]={activeSorting === "startTimeAsc"}
                 ></button>
                 <button
                   aria-label="Sort by start time descending"
                   class="h-0 w-0 border-x-8 border-x-transparent border-t-10 border-t-black hover:cursor-pointer"
-                  on:click={() => (activeSorting = "startTimeDesc")}
+                  onclick={() => (activeSorting = "startTimeDesc")}
                   class:border-t-black={activeSorting !== "startTimeDesc"}
                   class:border-t-[#e6516f]={activeSorting === "startTimeDesc"}
                 ></button>

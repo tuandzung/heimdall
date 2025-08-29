@@ -4,11 +4,11 @@
 
   import { appConfig } from "./stores/appConfig.js";
 
-  export let jobName;
-  export let type;
-  export let title;
+  let { jobName, type, title } = $props();
 
-  $: endpointPathPattern = $appConfig?.endpointPathPatterns?.[type];
+  const endpointPathPattern = $derived(
+    $appConfig?.endpointPathPatterns?.[type],
+  );
 
   function processEndpointPathPattern(pattern, jobName) {
     return pattern.replace("$jobName", jobName);
