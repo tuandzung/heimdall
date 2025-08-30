@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-
+from urllib.parse import urlparse
 from typing import List
 from unittest.mock import MagicMock, patch
 
@@ -149,7 +149,7 @@ def test_oauth_authorization_url(auth_enabled, mock_oauth_flow):
     assert resp.status_code == 200  # Returns JSON with authorization URL
     data = resp.json()
     assert "authorization_url" in data
-    assert "accounts.google.com" in data["authorization_url"]
+    assert urlparse(data["authorization_url"]).hostname == "accounts.google.com"
 
 
 def test_jwt_login_endpoint(auth_enabled):
