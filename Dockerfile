@@ -1,10 +1,17 @@
-FROM denoland/deno:alpine-2.4.5 AS build_ui
+FROM node:lts-alpine AS build_ui
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
 WORKDIR /app
-COPY webui/deno.lock webui/package.json webui/package-lock.json ./
-RUN deno install
+
+COPY webui/pnpm-lock.yaml webui/pnpm-workspace.yaml webui/package.json ./
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
 # Build
 COPY webui .
-RUN deno task build
+RUN pnpm run build
 
 # Build and run with uv
 FROM ghcr.io/astral-sh/uv:python3.13-alpine

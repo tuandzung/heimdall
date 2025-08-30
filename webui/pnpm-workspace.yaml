@@ -1,0 +1,9 @@
+packages:
+  - src/**
+  - public/**
+
+onlyBuiltDependencies:
+  - '@fortawesome/fontawesome-common-types'
+  - '@fortawesome/free-brands-svg-icons'
+  - '@tailwindcss/oxide'
+  - esbuild
