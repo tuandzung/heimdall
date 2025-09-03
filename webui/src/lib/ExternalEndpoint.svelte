@@ -1,16 +1,27 @@
-<script>
+<script lang="ts">
   import { faArrowUpRightFromSquare } from "@fortawesome/free-solid-svg-icons";
   import Fa from "svelte-fa";
 
-  import { appConfig } from "./stores/appConfig.js";
+  import { appConfig, type AppConfig } from "./stores/appConfig";
 
-  let { jobName, type, title } = $props();
+  interface Props {
+    jobName: string;
+    type: string;
+    title: string;
+  }
 
-  const endpointPathPattern = $derived(
-    $appConfig?.endpointPathPatterns?.[type],
+  let { jobName, type, title }: Props = $props();
+
+  const endpointPathPattern: string | undefined = $derived(
+    ($appConfig as AppConfig)?.endpointPathPatterns?.[type] as
+      | string
+      | undefined,
   );
 
-  function processEndpointPathPattern(pattern, jobName) {
+  function processEndpointPathPattern(
+    pattern: string,
+    jobName: string,
+  ): string {
     return pattern.replace("$jobName", jobName);
   }
 </script>

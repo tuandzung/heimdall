@@ -1,5 +1,11 @@
-<script>
-  let { type } = $props();
+<script lang="ts">
+  type JobTypeValue = "APPLICATION" | "SESSION" | string;
+
+  interface Props {
+    type: JobTypeValue;
+  }
+
+  let { type }: Props = $props();
 </script>
 
 <p

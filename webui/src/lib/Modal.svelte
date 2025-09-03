@@ -1,13 +1,20 @@
-<script>
+<script lang="ts">
   import Fa from "svelte-fa";
   import { faX } from "@fortawesome/free-solid-svg-icons";
+  import type { Snippet } from "svelte";
 
-  let { showModal, onClose, children } = $props();
+  interface Props {
+    showModal: boolean;
+    onClose?: () => void;
+    children?: Snippet;
+  }
 
-  let dialog;
+  let { showModal, onClose, children }: Props = $props();
+
+  let dialog: HTMLDialogElement | undefined;
 
   $effect(() => {
-    if (dialog && showModal) dialog.showModal();
+    if (dialog && showModal) dialog?.showModal();
   });
 </script>
 
@@ -16,7 +23,7 @@
   onclose={() => onClose?.()}
   onclick={(e) => {
     if (e.target === e.currentTarget) {
-      dialog.close();
+      dialog?.close();
     }
   }}
   class="w-[500px] h-[200px] p-[25px] outline-hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg shadow-lg bg-white border border-gray-200"
@@ -25,7 +32,7 @@
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => {
       if (e.key === "Escape") {
-        dialog.close();
+        dialog?.close();
       }
     }}
     role="dialog"
@@ -36,7 +43,7 @@
     <div class="absolute top-2 right-2">
       <button
         title="Close"
-        onclick={() => dialog.close()}
+        onclick={() => dialog?.close()}
         class="inline-block bg-transparent border-none cursor-pointer"
         aria-label="Close modal"
       >

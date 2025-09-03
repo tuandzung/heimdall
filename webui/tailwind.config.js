@@ -1,12 +1,9 @@
 import forms from "@tailwindcss/forms";
 
 export default {
-  safelist: [
-    { pattern: /bg-(red|green|yellow|gray)-500/ },
-  ],
+  safelist: [{ pattern: /bg-(red|green|yellow|gray)-500/ }],
   theme: {
-    extend: {},
+    extend: {}
   },
-  plugins: [forms],
+  plugins: [forms]
 };
-

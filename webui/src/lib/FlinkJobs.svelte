@@ -1,5 +1,4 @@
-<script>
-  import axios from "axios";
+<script lang="ts">
   import { format } from "date-fns";
   import Fa from "svelte-fa";
   import {
@@ -12,25 +11,57 @@
     faGear,
   } from "@fortawesome/free-solid-svg-icons";
 
-  import { appConfig } from "./stores/appConfig.js";
-  import { settings } from "./stores/settings.js";
-  import { flinkJobs } from "./stores/flinkJobs.js";
+  import { appConfig, type AppConfig } from "./stores/appConfig";
+  import { settings, type SettingsState } from "./stores/settings";
+  import {
+    flinkJobs,
+    type FlinkJobItem,
+    type FlinkJobsState,
+  } from "./stores/flinkJobs";
   import ExternalEndpoint from "./ExternalEndpoint.svelte";
   import JobType from "./JobType.svelte";
   import Modal from "./Modal.svelte";
 
-  let jobNameFilter = $state();
-  let statusFilter = $state();
+  type JobStatus = "RUNNING" | "FAILED" | "FINISHED" | "UNKNOWN" | string;
 
-  let activeSorting = $state();
+  interface FlinkResources {
+    jm: { replicas: number; cpu: number | string; mem: number | string };
+    tm: { replicas: number; cpu: number | string; mem: number | string };
+  }
 
-  let showSettingsModal = $state(false);
+  interface FlinkJob {
+    id: string | number;
+    name: string;
+    status: JobStatus;
+    startTime?: number | null;
+    resources: FlinkResources;
+    type: string;
+    parallelism?: number | null;
+    flinkVersion?: string | null;
+    shortImage?: string | null;
+    metadata: Record<string, string>;
+  }
 
-  const visibleFlinkJobs = $derived(
-    $flinkJobs.data
+  type Sorting =
+    | "jobNameAsc"
+    | "jobNameDesc"
+    | "startTimeAsc"
+    | "startTimeDesc"
+    | "resourcesAsc"
+    | "resourcesDesc";
+
+  let jobNameFilter: string | undefined = $state();
+  let statusFilter: JobStatus | undefined = $state();
+
+  let activeSorting: Sorting | undefined = $state();
+
+  let showSettingsModal: boolean = $state(false);
+
+  const visibleFlinkJobs: FlinkJob[] = $derived(
+    ((($flinkJobs as FlinkJobsState).data as FlinkJob[]) ?? [])
       .filter((job) => {
-        let nameMatch = true;
-        let statusMatch = true;
+        let nameMatch: boolean = true;
+        let statusMatch: boolean = true;
         if (jobNameFilter) {
           nameMatch = displayName(job).includes(jobNameFilter);
         }
@@ -53,22 +84,29 @@
         } else if (activeSorting === "resourcesDesc") {
           return sortNumbers(totalResources(b), totalResources(a));
         }
+        return 0;
       }),
   );
 
-  const jobStatusList = $derived([
-    ...new Set($flinkJobs.data.map((job) => job.status)),
+  const jobStatusList: JobStatus[] = $derived([
+    ...new Set(
+      ((($flinkJobs as FlinkJobsState).data as FlinkJob[]) ?? []).map(
+        (job) => job.status,
+      ),
+    ),
   ]);
 
-  const displayNamePattern = $derived($appConfig?.patterns?.["display-name"]);
+  const displayNamePattern: string | undefined = $derived(
+    ($appConfig as AppConfig)?.patterns?.["display-name"] as string | undefined,
+  );
 
   $effect(() => {
-    if ($settings.refreshInterval) {
+    if (($settings as SettingsState).refreshInterval) {
       flinkJobs.setInterval($settings.refreshInterval);
     }
   });
 
-  function statusColor(status) {
+  function statusColor(status: JobStatus): string {
     switch (status) {
       case "RUNNING":
         return "green";
@@ -82,13 +120,14 @@
     }
   }
 
-  function formatStartTime(startTime) {
+  function formatStartTime(startTime: number | null | undefined): string {
     if (startTime == null) return "";
     return format(new Date(startTime), "yyyy-MM-dd HH:mm:ss OOO");
   }
 
-  function displayName(flinkJob) {
-    let name = displayNamePattern.replace("$jobName", flinkJob.name);
+  function displayName(flinkJob: FlinkJob): string {
+    const pattern = displayNamePattern ?? "$jobName";
+    let name = pattern.replace("$jobName", flinkJob.name);
     if (Object.keys(flinkJob.metadata).length > 0) {
       for (const [key, value] of Object.entries(flinkJob.metadata)) {
         name = name.replace(`$metadata.${key}`, value);
@@ -101,19 +140,22 @@
     return name;
   }
 
-  function sortGeneric(a, b) {
+  function sortGeneric(a: string, b: string): number {
     if (a < b) return -1;
     if (a > b) return 1;
     return 0;
   }
 
-  function sortNumbers(a, b) {
+  function sortNumbers(
+    a: number | null | undefined,
+    b: number | null | undefined,
+  ): number {
     if (a == null) return 1;
     if (b == null) return -1;
     return b - a;
   }
 
-  function totalResources(flinkJob) {
+  function totalResources(flinkJob: FlinkJob): number {
     return flinkJob.resources.jm.replicas + flinkJob.resources.tm.replicas;
   }
 </script>
@@ -235,9 +277,9 @@
   </div>
 </div>
 
-{#if $flinkJobs.error}
+{#if ($flinkJobs as FlinkJobsState).error}
   <p class="text-xl text-center text-red-500 font-bold">
-    Couldn't load data: {$flinkJobs.error}
+    Couldn't load data: {($flinkJobs as FlinkJobsState).error}
   </p>
 {:else if visibleFlinkJobs.length > 0 || jobNameFilter || statusFilter}
   {#if $settings.displayMode === "tabular"}
@@ -464,7 +506,7 @@
       {/each}
     </div>
   {/if}
-{:else if $flinkJobs.loaded}
+{:else if ($flinkJobs as FlinkJobsState).loaded}
   <p class="text-xl text-center font-bold">No Flink Jobs found</p>
 {:else}
   <p class="text-xl text-center font-bold">Loading...</p>

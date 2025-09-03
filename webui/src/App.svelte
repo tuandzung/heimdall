@@ -1,12 +1,12 @@
-<script>
+<script lang="ts">
   import Fa from "svelte-fa";
   import { faGithub } from "@fortawesome/free-brands-svg-icons";
 
   import heimdallLogo from "./assets/heimdall-logo.png";
-  import { userStore } from "./lib/stores/user.js";
-  import { startGoogleOAuth } from "./lib/authApi.js";
+  import { userStore } from "./lib/stores/user";
+  import { startGoogleOAuth } from "./lib/authApi";
   import FlinkJobs from "./lib/FlinkJobs.svelte";
-  import { appConfig } from "./lib/stores/appConfig.js";
+  import { appConfig } from "./lib/stores/appConfig";
 </script>
 
 <main>

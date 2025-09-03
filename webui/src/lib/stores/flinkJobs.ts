@@ -1,0 +1,75 @@
+import { writable, type Writable } from "svelte/store";
+import axios from "axios";
+
+export interface FlinkResources {
+  jm: { replicas: number; cpu: number | string; mem: number | string };
+  tm: { replicas: number; cpu: number | string; mem: number | string };
+}
+
+export interface FlinkJobItem {
+  id: string | number;
+  name: string;
+  status: string;
+  startTime?: number | null;
+  resources: FlinkResources;
+  type: string;
+  parallelism?: number | null;
+  flinkVersion?: string | null;
+  shortImage?: string | null;
+  metadata: Record<string, string>;
+}
+
+export interface FlinkJobsState {
+  data: FlinkJobItem[];
+  loaded: boolean;
+  error?: unknown;
+}
+
+let allFlinkJobs: FlinkJobItem[] = [];
+
+function createDataStore() {
+  let intervalId: ReturnType<typeof setInterval> | undefined;
+  const { set, subscribe }: Writable<FlinkJobsState> = writable({ data: [], loaded: false }, () => {
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  });
+
+  function loadJobs() {
+    axios
+      .get("api/jobs")
+      .then((response) => {
+        allFlinkJobs = response.data as FlinkJobItem[];
+        set({
+          data: allFlinkJobs,
+          error: null,
+          loaded: true
+        });
+      })
+      .catch((error) => {
+        // don't show an error if we already have some loaded jobs
+        if (allFlinkJobs.length === 0) {
+          set({
+            data: allFlinkJobs,
+            error: error,
+            loaded: true
+          });
+        }
+      });
+  }
+
+  loadJobs();
+
+  return {
+    subscribe,
+    setInterval: (intervalSec: string | number) => {
+      const parsed = parseInt(String(intervalSec));
+      if (intervalId) clearInterval(intervalId);
+      if (parsed > 0) {
+        intervalId = setInterval(loadJobs, parsed * 1000);
+      }
+    }
+  };
+}
+
+export const flinkJobs = createDataStore();
