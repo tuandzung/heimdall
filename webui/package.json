@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@fortawesome/free-brands-svg-icons": "^7.0.0",
-    "@fortawesome/free-solid-svg-icons": "^7.0.0",
+    "@fortawesome/free-solid-svg-icons": "^7.0.1",
     "axios": "^1.11.0",
     "date-fns": "^4.1.0",
     "svelte-fa": "^4.0.4"
