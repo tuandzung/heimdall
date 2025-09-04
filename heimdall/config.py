@@ -29,6 +29,12 @@ class AuthSettings(BaseSettings):
     allowed_domains: list[str] = []
     session_secret_key: str = "change-me"
     database_url: str = "sqlite+aiosqlite:///./heimdall.db"
+    cookie_name: str = "heimdall_auth"
+    cookie_max_age: int = 3600
+    cookie_path: str = "/"
+    cookie_secure: bool = False
+    cookie_httponly: bool = True
+    cookie_samesite: str = "lax"
 
     model_config = SettingsConfigDict(env_prefix="HEIMDALL_AUTH_", env_nested_delimiter="__")
 
