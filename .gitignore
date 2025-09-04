@@ -70,5 +70,6 @@ uv.lock.bak
 .cursor
 .serena
 heimdall.db
+test.db
 CLAUDE.md
 .mcp.json
