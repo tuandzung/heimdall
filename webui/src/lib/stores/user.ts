@@ -1,6 +1,6 @@
 import { writable } from "svelte/store";
 import axios from "axios";
-import { getToken, setToken, clearToken } from "../auth";
+// Cookie auth only; no token storage
 
 export interface UserInfo {
   email: string;
@@ -17,20 +17,19 @@ function createUserStore() {
 
   async function refresh(): Promise<void> {
     try {
-      const resp = await axios.get("/users/me");
+      const resp = await axios.get("/users/me", { withCredentials: true });
       set({ user: resp.data as UserInfo, loaded: true });
-    } catch (e) {
+    } catch {
       set({ user: null, loaded: true });
     }
   }
 
   async function logout(): Promise<void> {
     try {
-      // For JWT, clearing the token is enough; POST is still safe for legacy session
-      await axios.post("/auth/logout");
+      // In cookie mode, backend should clear cookies on logout
+      await axios.post("/auth/cookie/logout", undefined, { withCredentials: true });
     } finally {
       // Ensure local state is cleared and force a UI reload
-      clearToken();
       set({ user: null, loaded: true });
       if (typeof window !== "undefined" && window.location) {
         window.location.href = "/";
@@ -38,35 +37,10 @@ function createUserStore() {
     }
   }
 
-  // On load, if callback redirected with token in URL hash, capture it
-  if (typeof window !== "undefined" && window.location) {
-    // Capture token provided by backend as URL fragment or search param
-    const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
-    const hparams = new URLSearchParams(hash);
-    let token = hparams.get("token");
-    if (!token) {
-      const sparams = new URLSearchParams(window.location.search);
-      token = sparams.get("token");
-      if (token) {
-        // Clean search token param
-        sparams.delete("token");
-        const cleaned = window.location.pathname + (sparams.toString() ? "?" + sparams.toString() : "");
-        window.history.replaceState({}, document.title, cleaned);
-      }
-    } else {
-      // Clean hash
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-    }
-    if (token) {
-      setToken(token);
-    }
-  }
+  // No token capture; cookie-based session only
 
   // initialize
-  const existing = getToken();
-  if (existing) {
-    axios.defaults.headers.common["Authorization"] = `Bearer ${existing}`;
-  }
+  // Cookie auth: no default Authorization header needed
   refresh();
 
   return { subscribe, refresh, logout };

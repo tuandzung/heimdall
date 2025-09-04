@@ -1,7 +1,8 @@
 import axios from "axios";
 
 export async function startGoogleOAuth(): Promise<void> {
-  const resp = await axios.get("/auth/google/authorize", {
+  // Use cookie-based OAuth so the session is kept in a secure cookie
+  const resp = await axios.get("/auth/google-cookie/authorize", {
     params: { scopes: ["openid", "email", "profile"] },
     // Keep the signature compatible with Axios' expected serializer param type
     paramsSerializer: (params: Record<string, string | string[] | undefined>) => {
