@@ -111,12 +111,12 @@ def get_jwt_strategy(settings: AppConfig) -> JWTStrategy:
 
 def get_cookie_transport(settings: AppConfig) -> CookieTransport:
     return CookieTransport(
-        cookie_name="heimdall_auth",
-        cookie_max_age=3600,
-        cookie_path="/",
-        cookie_secure=False,
-        cookie_httponly=True,
-        cookie_samesite="lax",
+        cookie_name=settings.auth.cookie_name,
+        cookie_max_age=settings.auth.cookie_max_age,
+        cookie_path=settings.auth.cookie_path,
+        cookie_secure=settings.auth.cookie_secure,
+        cookie_httponly=settings.auth.cookie_httponly,
+        cookie_samesite=settings.auth.cookie_samesite,
     )
 
 
