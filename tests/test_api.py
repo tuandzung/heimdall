@@ -56,8 +56,8 @@ def override_locator():
 @pytest.fixture(autouse=True)
 def setup_test_db(monkeypatch):
     """Initialize test database with SQLite in-memory."""
-    # Use in-memory SQLite for tests
-    monkeypatch.setenv("HEIMDALL_AUTH__DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    # Use file-based SQLite for tests to ensure shared connections
+    monkeypatch.setenv("HEIMDALL_AUTH__DATABASE_URL", "sqlite+aiosqlite:///./test.db")
 
     # Clear settings cache to pick up new env vars
     get_settings.cache_clear()  # type: ignore[attr-defined]
@@ -75,6 +75,9 @@ def setup_test_db(monkeypatch):
 
     try:
         loop.run_until_complete(get_async_sessionmaker(settings))
+        # Ensure auth tables are created
+        from heimdall.db import create_db_and_tables
+        loop.run_until_complete(create_db_and_tables(settings))
     finally:
         loop.close()
 
@@ -145,19 +148,19 @@ def test_oauth_authorization_url(auth_enabled, mock_oauth_flow):
     """Test OAuth authorization URL generation."""
     client = TestClient(app)
 
-    resp = client.get("/auth/google/authorize")
+    resp = client.get("/auth/google-cookie/authorize")
     assert resp.status_code == 200  # Returns JSON with authorization URL
     data = resp.json()
     assert "authorization_url" in data
     assert urlparse(data["authorization_url"]).hostname == "accounts.google.com"
 
 
-def test_jwt_login_endpoint(auth_enabled):
-    """Test JWT login endpoint exists and requires credentials."""
+def test_cookie_login_endpoint(auth_enabled):
+    """Test cookie login endpoint exists and requires credentials."""
     client = TestClient(app)
 
-    # Test login endpoint exists
-    resp = client.post("/auth/jwt/login", json={"username": "test", "password": "test"})
+    # Test cookie login endpoint exists
+    resp = client.post("/auth/cookie/login", data={"username": "test", "password": "test"})
     assert resp.status_code in [400, 422]  # Should fail due to invalid credentials
 
 
@@ -178,7 +181,7 @@ def test_user_management_endpoints_require_auth(auth_enabled):
     endpoints = [
         ("GET", "/users/me"),
         ("PATCH", "/users/me"),
-        ("POST", "/auth/jwt/logout"),
+        ("POST", "/auth/cookie/logout"),
     ]
 
     for method, endpoint in endpoints:
