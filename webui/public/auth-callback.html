@@ -22,24 +22,18 @@
           return;
         }
         try {
+          // Cookie-based callback; server sets the auth cookie
           const qs = new URLSearchParams({ code, state }).toString();
-          const resp = await fetch(`/auth/google/callback?${qs}`, { method: 'GET' });
+          const resp = await fetch(`/auth/google-cookie/callback?${qs}`, {
+            method: 'GET',
+            credentials: 'include'
+          });
           if (!resp.ok) {
             console.error('Callback exchange failed', await resp.text());
-            window.location.replace('/');
-            return;
-          }
-          const data = await resp.json();
-          const token = data && (data.access_token || data.token || data.tokenValue);
-          if (token) {
-            try { localStorage.setItem('heimdall_token', token); } catch {}
-            window.location.replace('/');
-          } else {
-            console.warn('No access token in callback response');
-            window.location.replace('/');
           }
         } catch (e) {
           console.error('Error completing OAuth callback', e);
+        } finally {
           window.location.replace('/');
         }
       })();
