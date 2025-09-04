@@ -26,7 +26,7 @@ class FlinkDeploymentClient:
             return
         # Try in-cluster first, fall back to kubeconfig
         try:
-            await self._config_mod.load_incluster_config()  # type: ignore
+            await self._config_mod.load_config()  # type: ignore
         except Exception:
             await self._config_mod.load_kube_config()  # type: ignore
         self.api = self._client_mod.CustomObjectsApi()  # type: ignore
