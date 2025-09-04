@@ -178,7 +178,17 @@ async def flink_rest_proxy(
         return resp.aiter_raw()
 
     # Filter response headers
-    excluded_resp_headers = {"content-encoding", "transfer-encoding", "connection"}
+    excluded_resp_headers = {
+        "content-encoding",
+        "transfer-encoding",
+        "connection",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "te",
+        "trailers",
+        "upgrade",
+    }
     response_headers = [(k, v) for k, v in resp.headers.items() if k.lower() not in excluded_resp_headers]
 
     return StreamingResponse(
