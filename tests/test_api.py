@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-from urllib.parse import urlparse
+
 from typing import List
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlparse
 
 import pytest
 
@@ -77,6 +78,7 @@ def setup_test_db(monkeypatch):
         loop.run_until_complete(get_async_sessionmaker(settings))
         # Ensure auth tables are created
         from heimdall.db import create_db_and_tables
+
         loop.run_until_complete(create_db_and_tables(settings))
     finally:
         loop.close()
@@ -162,6 +164,49 @@ def test_cookie_login_endpoint(auth_enabled):
     # Test cookie login endpoint exists
     resp = client.post("/auth/cookie/login", data={"username": "test", "password": "test"})
     assert resp.status_code in [400, 422]  # Should fail due to invalid credentials
+
+
+def test_cookie_login_success_and_session_persistence(auth_enabled):
+    """Test successful cookie login and session persistence."""
+    client = TestClient(app)
+    # Create a user for testing
+    import asyncio
+
+    from fastapi_users.password import PasswordHelper
+
+    from heimdall.db import User, get_async_sessionmaker
+
+    username = "sessionuser"
+    password = "sessionpass"
+    email = "sessionuser@example.com"
+    # Create user in the database
+
+    async def create_user():
+        sessionmaker = await get_async_sessionmaker(get_settings())
+        async with sessionmaker() as session:
+            user = await session.execute(User.__table__.select().where(User.email == email))
+            if not user.scalar():
+                new_user = User(
+                    username=username,
+                    email=email,
+                    hashed_password=PasswordHelper().hash(password),
+                    is_active=True,
+                )
+                session.add(new_user)
+                await session.commit()
+
+    asyncio.run(create_user())
+    # Login with valid credentials
+    resp = client.post("/auth/cookie/login", data={"username": email, "password": password})
+    assert resp.status_code == 204
+    assert "set-cookie" in resp.headers
+    # Extract session cookie
+    cookies = resp.cookies
+    # Access a protected endpoint with the session cookie
+    protected_resp = client.get("/users/me", cookies=cookies)
+    assert protected_resp.status_code == 200
+    user_data = protected_resp.json()
+    assert user_data["email"] == email
 
 
 def test_auth_callback_endpoint(auth_enabled):
