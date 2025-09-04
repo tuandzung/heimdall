@@ -41,6 +41,8 @@ class AppConfig(BaseSettings):
     debug: bool = False
     jobs_cache_ttl: int = 10
     allowed_origins: list[str] = ["*"]
+    # Optional mapping of app name -> base URL, e.g., {"orders": "http://orders-ui:8081"}
+    proxy_target_map: dict[str, str] = {}
 
     # Also expose an app version (can be set via env or falls back to package)
     app_version: str | None = None

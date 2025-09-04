@@ -7,15 +7,19 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import httpx
+
 from fastapi import Depends, FastAPI, Request
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.background import BackgroundTask
 
 from . import __version__
 from .config import AppConfig
 from .models import FlinkJob, UserRead, UserUpdate
 from .service import FlinkJobLocator, K8sOperatorFlinkJobLocator
-from .users import auth_backend, current_active_user, fusers, google_client
+from .users import cookie_backend, current_active_user, fusers, google_client
 
 if TYPE_CHECKING:
     from .db import User
@@ -43,32 +47,37 @@ def get_job_locator(settings: AppConfig = Depends(get_settings)) -> FlinkJobLoca
 async def lifespan(app: FastAPI):
     # Not needed if you setup a migration system like Alembic
     settings = get_settings()
+    # Shared HTTP client for proxying
+    app.state.http_client = httpx.AsyncClient()
     if settings.auth.enabled:
         from .db import create_db_and_tables  # local import
 
         await create_db_and_tables(settings)
-    yield
+    try:
+        yield
+    finally:
+        await app.state.http_client.aclose()
 
 
 app = FastAPI(title="Heimdall", version=__version__, lifespan=lifespan)
 
 
-# OAuth router under /auth/google (uses JWT backend)
+# Cookie-based OAuth router under /auth/google-cookie
 app.include_router(
     fusers.get_oauth_router(
         google_client,
-        auth_backend,
+        cookie_backend,
         settings.auth.session_secret_key or "change-me",
         is_verified_by_default=True,
         associate_by_email=True,
         redirect_url=settings.auth.redirect_url,
     ),
     dependencies=[Depends(get_settings)],
-    prefix="/auth/google",
+    prefix="/auth/google-cookie",
     tags=["auth"],
 )
-# JWT Login endpoints (username/password) – optional but useful for API clients
-app.include_router(fusers.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"])
+# Cookie login endpoints (username/password)
+app.include_router(fusers.get_auth_router(cookie_backend), prefix="/auth/cookie", tags=["auth"])
 app.include_router(
     fusers.get_users_router(UserRead, UserUpdate),
     prefix="/users",
@@ -119,6 +128,65 @@ async def list_jobs(
 @app.get("/healthz")
 async def healthz():
     return {"ok": True}
+
+
+@app.api_route("/proxy/{app}/{full_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
+async def flink_rest_proxy(
+    app: str,
+    full_path: str,
+    request: Request,
+    settings: AppConfig = Depends(get_settings),
+    _: User = Depends(current_active_user if settings.auth.enabled else lambda: None),
+):
+    # Resolve base URL for this app from mapping, fallback to default
+    base = settings.proxy_target_map.get(app) or f"http://{app}-rest:8081"
+    target_url = f"{base.rstrip('/')}/{full_path}"
+
+    client: httpx.AsyncClient = request.app.state.http_client
+
+    # Prepare proxied request
+    method = request.method
+    # Forward query params
+    query_string = request.url.query
+    if query_string:
+        target_url = f"{target_url}?{query_string}"
+
+    # Forward headers except host-related hop-by-hop ones
+    hop_by_hop = {
+        "host",
+        "connection",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "te",
+        "trailers",
+        "transfer-encoding",
+        "upgrade",
+    }
+    headers = {k: v for k, v in request.headers.items() if k.lower() not in hop_by_hop}
+
+    # Body streaming
+    async def body_iter():
+        async for chunk in request.stream():
+            yield chunk
+
+    req = client.build_request(method, target_url, headers=headers, content=body_iter())
+    resp = await client.send(req, stream=True)
+
+    # Streaming response back to client
+    def iter_response():
+        return resp.aiter_raw()
+
+    # Filter response headers
+    excluded_resp_headers = {"content-encoding", "transfer-encoding", "connection"}
+    response_headers = [(k, v) for k, v in resp.headers.items() if k.lower() not in excluded_resp_headers]
+
+    return StreamingResponse(
+        iter_response(),
+        status_code=resp.status_code,
+        headers=dict(response_headers),
+        background=BackgroundTask(resp.aclose),
+    )
 
 
 # Mount built UI last so it doesn't shadow /auth/* routes
