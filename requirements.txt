@@ -48,7 +48,7 @@ colorama==0.4.6 ; sys_platform == 'win32'
     #   click
     #   pytest
     #   uvicorn
-cryptography==45.0.6
+cryptography==45.0.7
     # via
     #   authlib
     #   pyjwt
