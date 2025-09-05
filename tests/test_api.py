@@ -119,6 +119,54 @@ def mock_oauth_flow():
         yield mock_client
 
 
+@pytest.fixture
+def create_user(monkeypatch):
+    # Create a user for testing
+
+    import asyncio
+
+    from fastapi_users.password import PasswordHelper
+
+    from heimdall.db import User, get_async_sessionmaker
+
+    # Create user in the database
+    """Fixture to create a test user."""
+    monkeypatch.setenv("HEIMDALL_AUTH__ENABLED", "true")
+    monkeypatch.setenv("HEIMDALL_AUTH__SESSION_SECRET_KEY", "test-secret-key-1234567890")
+    monkeypatch.setenv("HEIMDALL_AUTH__GOOGLE_CLIENT_ID", "test-google-client-id")
+    monkeypatch.setenv("HEIMDALL_AUTH__GOOGLE_CLIENT_SECRET", "test-google-client-secret")
+    monkeypatch.setenv("HEIMDALL_AUTH__ALLOWED_DOMAINS", json.dumps(["example.com"]))
+    get_settings.cache_clear()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    async def _create_user():
+        sessionmaker = await get_async_sessionmaker(get_settings())
+        async with sessionmaker() as session:
+            user = await session.execute(User.__table__.select().where(User.email == "test@example.com"))
+            if not user.scalar():
+                new_user = User(
+                    email="test@example.com",
+                    hashed_password=PasswordHelper().hash("test"),
+                    is_active=True,
+                )
+                session.add(new_user)
+                await session.commit()
+
+    try:
+        loop.run_until_complete(_create_user())
+    finally:
+        loop.close()
+
+    monkeypatch.delenv("HEIMDALL_AUTH__ENABLED", raising=False)
+    monkeypatch.delenv("HEIMDALL_AUTH__SESSION_SECRET_KEY", raising=False)
+    monkeypatch.delenv("HEIMDALL_AUTH__GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("HEIMDALL_AUTH__GOOGLE_CLIENT_SECRET", raising=False)
+    monkeypatch.delenv("HEIMDALL_AUTH__ALLOWED_DOMAINS", raising=False)
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+
+
 def test_healthz():
     """Health endpoint should always be accessible."""
     client = TestClient(app)
@@ -166,36 +214,13 @@ def test_cookie_login_endpoint(auth_enabled):
     assert resp.status_code in [400, 422]  # Should fail due to invalid credentials
 
 
-def test_cookie_login_success_and_session_persistence(auth_enabled):
+def test_cookie_login_success_and_session_persistence(create_user):
     """Test successful cookie login and session persistence."""
     client = TestClient(app)
-    # Create a user for testing
-    import asyncio
 
-    from fastapi_users.password import PasswordHelper
+    email = "test@example.com"
+    password = "test"
 
-    from heimdall.db import User, get_async_sessionmaker
-
-    username = "sessionuser"
-    password = "sessionpass"
-    email = "sessionuser@example.com"
-    # Create user in the database
-
-    async def create_user():
-        sessionmaker = await get_async_sessionmaker(get_settings())
-        async with sessionmaker() as session:
-            user = await session.execute(User.__table__.select().where(User.email == email))
-            if not user.scalar():
-                new_user = User(
-                    username=username,
-                    email=email,
-                    hashed_password=PasswordHelper().hash(password),
-                    is_active=True,
-                )
-                session.add(new_user)
-                await session.commit()
-
-    asyncio.run(create_user())
     # Login with valid credentials
     resp = client.post("/auth/cookie/login", data={"username": email, "password": password})
     assert resp.status_code == 204
