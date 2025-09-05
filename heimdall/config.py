@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from enum import Enum
 
 from dotenv import load_dotenv
@@ -39,7 +40,7 @@ class AuthSettings(BaseSettings):
     cookie_name: str = "heimdall_auth"
     cookie_max_age: int = 3600
     cookie_path: str = "/"
-    cookie_secure: bool = False
+    cookie_secure: bool = True
     cookie_httponly: bool = True
     cookie_samesite: CookieSamesiteEnum = CookieSamesiteEnum.LAX
 
