@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { writable, type Readable } from "svelte/store";
 import axios from "axios";
 // Cookie auth only; no token storage
 
@@ -12,19 +12,19 @@ export interface UserState {
   loaded: boolean;
 }
 
-function createUserStore() {
+function createUserStore(): Readable<UserState> & { refresh: () => Promise<void>; logout: () => Promise<void> } {
   const { subscribe, set } = writable<UserState>({ user: null, loaded: false });
 
-  async function refresh(): Promise<void> {
+  const refresh = async (): Promise<void> => {
     try {
       const resp = await axios.get("/users/me", { withCredentials: true });
       set({ user: resp.data as UserInfo, loaded: true });
     } catch {
       set({ user: null, loaded: true });
     }
-  }
+  };
 
-  async function logout(): Promise<void> {
+  const logout = async (): Promise<void> => {
     try {
       // In cookie mode, backend should clear cookies on logout
       await axios.post("/auth/cookie/logout", undefined, { withCredentials: true });
@@ -35,7 +35,7 @@ function createUserStore() {
         window.location.href = "/";
       }
     }
-  }
+  };
 
   // No token capture; cookie-based session only
 

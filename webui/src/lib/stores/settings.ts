@@ -32,5 +32,7 @@ export const settings = writable<SettingsState>(stored || defaults);
 settings.subscribe((value) => {
   try {
     localStorage.setItem("heimdall_settings", JSON.stringify(value));
-  } catch {}
+  } catch {
+    // Ignore localStorage errors
+  }
 });
