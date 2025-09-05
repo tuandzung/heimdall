@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -170,33 +170,64 @@ async def flink_rest_proxy(
         async for chunk in request.stream():
             yield chunk
 
-    req = client.build_request(method, target_url, headers=headers, content=body_iter())
-    resp = await client.send(req, stream=True)
+    try:
+        req = client.build_request(method, target_url, headers=headers, content=body_iter())
+        resp = await client.send(req, stream=True)
 
-    # Streaming response back to client
-    def iter_response():
-        return resp.aiter_raw()
+        # Handle non-2xx responses
+        if resp.status_code >= 400:
+            # Log the error but don't expose internal details to client
+            error_detail = f"Upstream service returned error: {resp.status_code}"
+            if resp.status_code == 404:
+                error_detail = "Upstream service not found"
+            elif resp.status_code >= 500:
+                error_detail = "Upstream service error"
+            
+            # Read the response body for logging purposes
+            try:
+                error_body = await resp.aread()
+                # Log the error for debugging, but don't expose to client
+                print(f"Proxy error: {resp.status_code} - {error_body.decode()[:200]}")
+            except:
+                pass
+            
+            await resp.aclose()
+            raise HTTPException(status_code=resp.status_code, detail=error_detail)
 
-    # Filter response headers
-    excluded_resp_headers = {
-        "content-encoding",
-        "transfer-encoding",
-        "connection",
-        "keep-alive",
-        "proxy-authenticate",
-        "proxy-authorization",
-        "te",
-        "trailers",
-        "upgrade",
-    }
-    response_headers = [(k, v) for k, v in resp.headers.items() if k.lower() not in excluded_resp_headers]
+        # Streaming response back to client
+        def iter_response():
+            return resp.aiter_raw()
 
-    return StreamingResponse(
-        iter_response(),
-        status_code=resp.status_code,
-        headers=dict(response_headers),
-        background=BackgroundTask(resp.aclose),
-    )
+        # Filter response headers
+        excluded_resp_headers = {
+            "content-encoding",
+            "transfer-encoding",
+            "connection",
+            "keep-alive",
+            "proxy-authenticate",
+            "proxy-authorization",
+            "te",
+            "trailers",
+            "upgrade",
+        }
+        response_headers = [(k, v) for k, v in resp.headers.items() if k.lower() not in excluded_resp_headers]
+
+        return StreamingResponse(
+            iter_response(),
+            status_code=resp.status_code,
+            headers=dict(response_headers),
+            background=BackgroundTask(resp.aclose),
+        )
+
+    except httpx.ConnectError:
+        raise HTTPException(status_code=502, detail="Unable to connect to upstream service")
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Upstream service timeout")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Upstream service error: {str(e)}")
+    except Exception as e:
+        # Generic error handling
+        raise HTTPException(status_code=500, detail="Internal proxy error")
 
 
 # Mount built UI last so it doesn't shadow /auth/* routes
