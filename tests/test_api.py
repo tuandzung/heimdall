@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 
 from typing import List
 from unittest.mock import MagicMock, patch
@@ -57,8 +58,10 @@ def override_locator():
 @pytest.fixture(autouse=True)
 def setup_test_db(monkeypatch):
     """Initialize test database with SQLite in-memory."""
+    test_db_path = "./test.db"
+
     # Use file-based SQLite for tests to ensure shared connections
-    monkeypatch.setenv("HEIMDALL_AUTH__DATABASE_URL", "sqlite+aiosqlite:///./test.db")
+    monkeypatch.setenv("HEIMDALL_AUTH__DATABASE_URL", f"sqlite+aiosqlite:///{test_db_path}")
 
     # Clear settings cache to pick up new env vars
     get_settings.cache_clear()  # type: ignore[attr-defined]
@@ -88,6 +91,10 @@ def setup_test_db(monkeypatch):
     # Cleanup
     monkeypatch.delenv("HEIMDALL_AUTH__DATABASE_URL", raising=False)
     get_settings.cache_clear()  # type: ignore[attr-defined]
+
+    # Clean up test database file after tests
+    if os.path.exists(test_db_path):
+        os.remove(test_db_path)
 
 
 @pytest.fixture
