@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import uuid
 
 from typing import TYPE_CHECKING, AsyncGenerator, Optional
@@ -13,6 +12,7 @@ from httpx_oauth.clients.google import GoogleOAuth2
 
 from .config import AppConfig
 from .db import User, get_user_db
+from .logger import logger
 
 if TYPE_CHECKING:
     from fastapi_users.db import (
@@ -21,8 +21,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from .models import UserCreate
-
-logger = logging.getLogger("uvicorn.error")
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):

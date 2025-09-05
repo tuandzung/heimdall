@@ -17,6 +17,7 @@ from starlette.background import BackgroundTask
 
 from . import __version__
 from .config import AppConfig
+from .logger import logger
 from .models import FlinkJob, UserRead, UserUpdate
 from .service import FlinkJobLocator, K8sOperatorFlinkJobLocator
 from .users import cookie_backend, current_active_user, fusers, google_client
@@ -182,15 +183,15 @@ async def flink_rest_proxy(
                 error_detail = "Upstream service not found"
             elif resp.status_code >= 500:
                 error_detail = "Upstream service error"
-            
+
             # Read the response body for logging purposes
             try:
                 error_body = await resp.aread()
                 # Log the error for debugging, but don't expose to client
-                print(f"Proxy error: {resp.status_code} - {error_body.decode()[:200]}")
-            except:
+                logger.error(f"Proxy error: {resp.status_code} - {error_body.decode()[:200]}")
+            except Exception:
                 pass
-            
+
             await resp.aclose()
             raise HTTPException(status_code=resp.status_code, detail=error_detail)
 
@@ -227,6 +228,7 @@ async def flink_rest_proxy(
         raise HTTPException(status_code=502, detail=f"Upstream service error: {str(e)}")
     except Exception as e:
         # Generic error handling
+        logger.exception(f"Unhandled exception in proxy handler: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal proxy error")
 
 
