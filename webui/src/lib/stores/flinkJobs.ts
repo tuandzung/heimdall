@@ -45,8 +45,20 @@ function createDataStore(): Readable<FlinkJobsState> & { setInterval: (intervalS
         loaded: true
       });
     } catch (e) {
-      // don't show an error if we already have some loaded jobs
-      if (allFlinkJobs.length === 0) {
+      // For network errors, provide better feedback
+      const error = e as Error;
+      
+      // If we have existing data, show a warning but don't clear the data
+      if (allFlinkJobs.length > 0) {
+        console.warn("Failed to refresh jobs, using cached data:", error.message);
+        // Optionally set a warning state instead of full error
+        set({
+          data: allFlinkJobs,
+          error: { message: "Failed to refresh jobs, using cached data", original: error },
+          loaded: true
+        });
+      } else {
+        // No existing data, show full error
         set({
           data: allFlinkJobs,
           error: e,
