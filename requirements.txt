@@ -151,7 +151,7 @@ pygments==2.19.2
     #   rich
 pyjwt==2.10.1
     # via fastapi-users
-pytest==8.4.1
+pytest==8.4.2
     # via
     #   heimdall
     #   pytest-asyncio
