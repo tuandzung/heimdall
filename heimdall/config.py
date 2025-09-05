@@ -1,4 +1,5 @@
 from __future__ import annotations
+from enum import Enum
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,6 +21,12 @@ class JobLocatorSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="HEIMDALL_JOBLOCATOR_", env_nested_delimiter="__")
 
 
+class CookieSamesiteEnum(str, Enum):
+    LAX = "lax"
+    STRICT = "strict"
+    NONE = "none"
+
+
 class AuthSettings(BaseSettings):
     enabled: bool = False
     google_client_id: str | None = None
@@ -34,7 +41,7 @@ class AuthSettings(BaseSettings):
     cookie_path: str = "/"
     cookie_secure: bool = False
     cookie_httponly: bool = True
-    cookie_samesite: str = "lax"
+    cookie_samesite: CookieSamesiteEnum = CookieSamesiteEnum.LAX
 
     model_config = SettingsConfigDict(env_prefix="HEIMDALL_AUTH_", env_nested_delimiter="__")
 
