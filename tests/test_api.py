@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 
 from typing import List
 from unittest.mock import MagicMock, patch
@@ -16,6 +15,9 @@ from heimdall.api import app, get_job_locator, get_settings
 from heimdall.db import get_async_sessionmaker
 from heimdall.models import FlinkJob, FlinkJobResources, FlinkJobType
 from heimdall.service import FlinkJobLocator
+
+# Test constants to avoid hardcoded secrets
+TEST_PASSWORD = "test-password-123"  # Non-sensitive test password
 
 
 class FakeLocator(FlinkJobLocator):
@@ -58,10 +60,8 @@ def override_locator():
 @pytest.fixture(autouse=True)
 def setup_test_db(monkeypatch):
     """Initialize test database with SQLite in-memory."""
-    test_db_path = "./test.db"
-
-    # Use file-based SQLite for tests to ensure shared connections
-    monkeypatch.setenv("HEIMDALL_AUTH__DATABASE_URL", f"sqlite+aiosqlite:///{test_db_path}")
+    # Use in-memory SQLite for tests to avoid file permission issues
+    monkeypatch.setenv("HEIMDALL_AUTH__DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
     # Clear settings cache to pick up new env vars
     get_settings.cache_clear()  # type: ignore[attr-defined]
@@ -92,10 +92,6 @@ def setup_test_db(monkeypatch):
     monkeypatch.delenv("HEIMDALL_AUTH__DATABASE_URL", raising=False)
     get_settings.cache_clear()  # type: ignore[attr-defined]
 
-    # Clean up test database file after tests
-    if os.path.exists(test_db_path):
-        os.remove(test_db_path)
-
 
 @pytest.fixture
 def auth_enabled(monkeypatch):
@@ -105,6 +101,7 @@ def auth_enabled(monkeypatch):
     monkeypatch.setenv("HEIMDALL_AUTH__GOOGLE_CLIENT_ID", "test-google-client-id")
     monkeypatch.setenv("HEIMDALL_AUTH__GOOGLE_CLIENT_SECRET", "test-google-client-secret")
     monkeypatch.setenv("HEIMDALL_AUTH__ALLOWED_DOMAINS", json.dumps(["example.com"]))
+    monkeypatch.setenv("HEIMDALL_AUTH__COOKIE_SECURE", "false")  # Allow cookies over HTTP for testing
     get_settings.cache_clear()
     yield
     monkeypatch.delenv("HEIMDALL_AUTH__ENABLED", raising=False)
@@ -112,6 +109,7 @@ def auth_enabled(monkeypatch):
     monkeypatch.delenv("HEIMDALL_AUTH__GOOGLE_CLIENT_ID", raising=False)
     monkeypatch.delenv("HEIMDALL_AUTH__GOOGLE_CLIENT_SECRET", raising=False)
     monkeypatch.delenv("HEIMDALL_AUTH__ALLOWED_DOMAINS", raising=False)
+    monkeypatch.delenv("HEIMDALL_AUTH__COOKIE_SECURE", raising=False)
     get_settings.cache_clear()
 
 
@@ -127,24 +125,15 @@ def mock_oauth_flow():
 
 
 @pytest.fixture
-def create_user(monkeypatch):
-    # Create a user for testing
-
+def create_user(auth_enabled):
+    """Fixture to create a test user and return user email."""
     import asyncio
 
     from fastapi_users.password import PasswordHelper
 
     from heimdall.db import User, get_async_sessionmaker
 
-    # Create user in the database
-    """Fixture to create a test user."""
-    monkeypatch.setenv("HEIMDALL_AUTH__ENABLED", "true")
-    monkeypatch.setenv("HEIMDALL_AUTH__SESSION_SECRET_KEY", "test-secret-key-1234567890")
-    monkeypatch.setenv("HEIMDALL_AUTH__GOOGLE_CLIENT_ID", "test-google-client-id")
-    monkeypatch.setenv("HEIMDALL_AUTH__GOOGLE_CLIENT_SECRET", "test-google-client-secret")
-    monkeypatch.setenv("HEIMDALL_AUTH__ALLOWED_DOMAINS", json.dumps(["example.com"]))
-    get_settings.cache_clear()
-
+    # Create a new event loop for this fixture
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -155,7 +144,7 @@ def create_user(monkeypatch):
             if not user.scalar():
                 new_user = User(
                     email="test@example.com",
-                    hashed_password=PasswordHelper().hash("test"),
+                    hashed_password=PasswordHelper().hash(TEST_PASSWORD),
                     is_active=True,
                 )
                 session.add(new_user)
@@ -163,15 +152,22 @@ def create_user(monkeypatch):
 
     try:
         loop.run_until_complete(_create_user())
+        yield "test@example.com"  # Return the user email
     finally:
-        loop.close()
+        # Cleanup - remove the user
+        async def _cleanup_user():
+            sessionmaker = await get_async_sessionmaker(get_settings())
+            async with sessionmaker() as session:
+                await session.execute(User.__table__.delete().where(User.email == "test@example.com"))
+                await session.commit()
 
-    monkeypatch.delenv("HEIMDALL_AUTH__ENABLED", raising=False)
-    monkeypatch.delenv("HEIMDALL_AUTH__SESSION_SECRET_KEY", raising=False)
-    monkeypatch.delenv("HEIMDALL_AUTH__GOOGLE_CLIENT_ID", raising=False)
-    monkeypatch.delenv("HEIMDALL_AUTH__GOOGLE_CLIENT_SECRET", raising=False)
-    monkeypatch.delenv("HEIMDALL_AUTH__ALLOWED_DOMAINS", raising=False)
-    get_settings.cache_clear()  # type: ignore[attr-defined]
+        # Create a new loop for cleanup since the original one might be closed
+        cleanup_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(cleanup_loop)
+        try:
+            cleanup_loop.run_until_complete(_cleanup_user())
+        finally:
+            cleanup_loop.close()
 
 
 def test_healthz():
@@ -217,25 +213,26 @@ def test_cookie_login_endpoint(auth_enabled):
     client = TestClient(app)
 
     # Test cookie login endpoint exists
-    resp = client.post("/auth/cookie/login", data={"username": "test", "password": "test"})
+    resp = client.post("/auth/cookie/login", data={"username": "notexist@example.com", "password": TEST_PASSWORD})
     assert resp.status_code in [400, 422]  # Should fail due to invalid credentials
 
 
-def test_cookie_login_success_and_session_persistence(create_user):
+def test_cookie_login_success_and_session_persistence(create_user, auth_enabled):
     """Test successful cookie login and session persistence."""
     client = TestClient(app)
 
-    email = "test@example.com"
-    password = "test"
+    email = create_user  # Use the email returned by the fixture
 
     # Login with valid credentials
-    resp = client.post("/auth/cookie/login", data={"username": email, "password": password})
+    resp = client.post("/auth/cookie/login", data={"username": email, "password": TEST_PASSWORD})
     assert resp.status_code == 204
     assert "set-cookie" in resp.headers
     # Extract session cookie
     cookies = resp.cookies
+    # Set the cookie on the client instance directly (avoiding deprecated per-request cookies)
+    client.cookies.update(cookies)
     # Access a protected endpoint with the session cookie
-    protected_resp = client.get("/users/me", cookies=cookies)
+    protected_resp = client.get("/users/me")
     assert protected_resp.status_code == 200
     user_data = protected_resp.json()
     assert user_data["email"] == email
