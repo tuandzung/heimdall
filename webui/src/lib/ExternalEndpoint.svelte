@@ -18,12 +18,10 @@
       | undefined,
   );
 
-  function processEndpointPathPattern(
+  const processEndpointPathPattern = (
     pattern: string,
     jobName: string,
-  ): string {
-    return pattern.replace("$jobName", jobName);
-  }
+  ): string => pattern.replace("$jobName", jobName);
 </script>
 
 {#if endpointPathPattern}

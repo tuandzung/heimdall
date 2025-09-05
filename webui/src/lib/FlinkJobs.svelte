@@ -13,11 +13,7 @@
 
   import { appConfig, type AppConfig } from "./stores/appConfig";
   import { settings, type SettingsState } from "./stores/settings";
-  import {
-    flinkJobs,
-    type FlinkJobItem,
-    type FlinkJobsState,
-  } from "./stores/flinkJobs";
+  import { flinkJobs, type FlinkJobsState } from "./stores/flinkJobs";
   import ExternalEndpoint from "./ExternalEndpoint.svelte";
   import JobType from "./JobType.svelte";
   import Modal from "./Modal.svelte";
@@ -106,7 +102,7 @@
     }
   });
 
-  function statusColor(status: JobStatus): string {
+  const statusColor = (status: JobStatus): string => {
     switch (status) {
       case "RUNNING":
         return "green";
@@ -118,14 +114,14 @@
       default:
         return "yellow";
     }
-  }
+  };
 
-  function formatStartTime(startTime: number | null | undefined): string {
+  const formatStartTime = (startTime: number | null | undefined): string => {
     if (startTime == null) return "";
     return format(new Date(startTime), "yyyy-MM-dd HH:mm:ss OOO");
-  }
+  };
 
-  function displayName(flinkJob: FlinkJob): string {
+  const displayName = (flinkJob: FlinkJob): string => {
     const pattern = displayNamePattern ?? "$jobName";
     let name = pattern.replace("$jobName", flinkJob.name);
     if (Object.keys(flinkJob.metadata).length > 0) {
@@ -138,81 +134,82 @@
       name = name.replace(/.?\$metadata\.[^ ]*/g, "");
     }
     return name;
-  }
+  };
 
-  function sortGeneric(a: string, b: string): number {
+  const sortGeneric = (a: string, b: string): number => {
     if (a < b) return -1;
     if (a > b) return 1;
     return 0;
-  }
+  };
 
-  function sortNumbers(
+  const sortNumbers = (
     a: number | null | undefined,
     b: number | null | undefined,
-  ): number {
+  ): number => {
     if (a == null) return 1;
     if (b == null) return -1;
     return b - a;
-  }
+  };
 
-  function totalResources(flinkJob: FlinkJob): number {
+  const totalResources = (flinkJob: FlinkJob): number => {
     return flinkJob.resources.jm.replicas + flinkJob.resources.tm.replicas;
-  }
+  };
 </script>
 
 <Modal
   showModal={showSettingsModal}
   onClose={() => (showSettingsModal = false)}
->
-  {#snippet children()}
-    <div>
-      Refresh interval:
-      <select
-        name="refreshInterval"
-        bind:value={$settings.refreshInterval}
-        class="ml-2"
-      >
-        <option value="-1">No refresh</option>
-        <option value="10">10 sec</option>
-        <option value="30">30 sec</option>
-        <option value="60">60 sec</option>
-        <option value="300">5 min</option>
-      </select>
-    </div>
-    <div class="mt-2.5">
-      Display details:
-      <div class="mt-1">
-        <div>
-          <label>
-            <input
-              name="showJobParallelism"
-              type="checkbox"
-              bind:checked={$settings.showJobParallelism}
-            /> Parallelism
-          </label>
-        </div>
-        <div>
-          <label>
-            <input
-              name="showJobFlinkVersion"
-              type="checkbox"
-              bind:checked={$settings.showJobFlinkVersion}
-            /> Flink version
-          </label>
-        </div>
-        <div>
-          <label>
-            <input
-              name="showJobImage"
-              type="checkbox"
-              bind:checked={$settings.showJobImage}
-            /> Image
-          </label>
-        </div>
+  children={settingsContent}
+/>
+
+{#snippet settingsContent()}
+  <div>
+    Refresh interval:
+    <select
+      name="refreshInterval"
+      bind:value={$settings.refreshInterval}
+      class="ml-2"
+    >
+      <option value="-1">No refresh</option>
+      <option value="10">10 sec</option>
+      <option value="30">30 sec</option>
+      <option value="60">60 sec</option>
+      <option value="300">5 min</option>
+    </select>
+  </div>
+  <div class="mt-2.5">
+    Display details:
+    <div class="mt-1">
+      <div>
+        <label>
+          <input
+            name="showJobParallelism"
+            type="checkbox"
+            bind:checked={$settings.showJobParallelism}
+          /> Parallelism
+        </label>
+      </div>
+      <div>
+        <label>
+          <input
+            name="showJobFlinkVersion"
+            type="checkbox"
+            bind:checked={$settings.showJobFlinkVersion}
+          /> Flink version
+        </label>
+      </div>
+      <div>
+        <label>
+          <input
+            name="showJobImage"
+            type="checkbox"
+            bind:checked={$settings.showJobImage}
+          /> Image
+        </label>
       </div>
     </div>
-  {/snippet}
-</Modal>
+  </div>
+{/snippet}
 <div class="flex items-center justify-between py-6 text-base">
   <div>
     Filter by name:
@@ -225,7 +222,7 @@
     &nbsp; Filter by status
     <select name="statusFilter" bind:value={statusFilter}>
       <option value="">Show all</option>
-      {#each jobStatusList as status}
+      {#each jobStatusList as status (status)}
         <option value={status}>{status}</option>
       {/each}
     </select>

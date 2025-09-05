@@ -7,7 +7,7 @@ export interface AppConfig {
   endpointPathPatterns?: Record<string, string>;
 }
 
-export const appConfig = readable<AppConfig | null>(null, function start(set) {
+export const appConfig = readable<AppConfig | null>(null, (set) => {
   axios
     .get("api/config")
     .then((response) => {
@@ -18,5 +18,5 @@ export const appConfig = readable<AppConfig | null>(null, function start(set) {
       console.log(error);
     });
 
-  return function stop() {};
+  return () => {};
 });

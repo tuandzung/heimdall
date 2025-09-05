@@ -1,4 +1,4 @@
-import { writable, type Writable } from "svelte/store";
+import { writable, type Writable, type Readable } from "svelte/store";
 import axios from "axios";
 
 export interface FlinkResources {
@@ -27,7 +27,7 @@ export interface FlinkJobsState {
 
 let allFlinkJobs: FlinkJobItem[] = [];
 
-function createDataStore() {
+function createDataStore(): Readable<FlinkJobsState> & { setInterval: (intervalSec: string | number) => void } {
   let intervalId: ReturnType<typeof setInterval> | undefined;
   const { set, subscribe }: Writable<FlinkJobsState> = writable({ data: [], loaded: false }, () => {
     return () => {
@@ -35,28 +35,26 @@ function createDataStore() {
     };
   });
 
-  function loadJobs() {
-    axios
-      .get("api/jobs")
-      .then((response) => {
-        allFlinkJobs = response.data as FlinkJobItem[];
+  const loadJobs = async (): Promise<void> => {
+    try {
+      const resp = await axios.get("/api/jobs", { withCredentials: true });
+      allFlinkJobs = resp.data as FlinkJobItem[];
+      set({
+        data: allFlinkJobs,
+        error: null,
+        loaded: true
+      });
+    } catch (e) {
+      // don't show an error if we already have some loaded jobs
+      if (allFlinkJobs.length === 0) {
         set({
           data: allFlinkJobs,
-          error: null,
+          error: e,
           loaded: true
         });
-      })
-      .catch((error) => {
-        // don't show an error if we already have some loaded jobs
-        if (allFlinkJobs.length === 0) {
-          set({
-            data: allFlinkJobs,
-            error: error,
-            loaded: true
-          });
-        }
-      });
-  }
+      }
+    }
+  };
 
   loadJobs();
 
